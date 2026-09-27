@@ -10,6 +10,12 @@ const S = (date, kg, reps, key = 'fuerza') => ({
 
 // Sin historial
 assert.equal(suggest([], item, 'weight').type, 'new');
+assert.equal(suggest([], item, 'weight').kg, null);
+
+// Sin historial pero con peso actual cargado → se usa ese peso
+assert.equal(suggest([], { ...item, start: 79 }, 'weight').kg, 79);
+// Con historial, manda el historial y no el peso inicial
+assert.equal(suggest([S('2026-09-01', 82, [10, 10, 9])], { ...item, start: 79 }, 'weight').kg, 82);
 
 // Dos sesiones 3×10 con 50 kg → subir 5–10 %
 let r = suggest([S('2026-09-01', 50, [10, 10, 10]), S('2026-09-03', 50, [10, 10, 10])], item, 'weight');

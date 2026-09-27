@@ -40,6 +40,14 @@ export function suggest(sessions, item, kind) {
 
   if (kind === 'time') return suggestTime(hist, item);
 
+  if (!last && item.start) {
+    return {
+      type: 'new', kg: item.start, reps: item.repMax, streak: 0,
+      text: `Empieza con ${fmt(item.start)} kg`,
+      detail: `Tu peso actual. Si hoy estás más fuerte, cámbialo. Meta: ${item.sets}×${item.repMax}.`,
+    };
+  }
+
   if (!last) {
     return {
       type: 'new', kg: null, reps: item.repMax, streak: 0,

@@ -93,10 +93,11 @@ export const MODES = {
       {
         id: 'F', name: 'Sesión de fuerza', short: 'Fuerza',
         items: [
-          { ex: 'prensa', ...F },
-          { ex: 'banca', ...F },
-          { ex: 'jalon', ...F },
-          { ex: 'hombro', ...F },
+          // start: peso con el que se llena la primera sesión (pesos actuales del usuario)
+          { ex: 'prensa', ...F, start: 137 },
+          { ex: 'banca', ...F, start: 79 },
+          { ex: 'jalon', ...F, start: 89 },
+          { ex: 'hombro', ...F, start: 52 },
           { ex: 'plancha', ...F, repMin: 30, repMax: 60 },
         ],
       },
