@@ -1,5 +1,5 @@
 // Service worker: la app funciona sin internet; las imágenes se guardan la primera vez que se ven.
-const VERSION = 'gymlog-v1';
+const VERSION = 'gymlog-v2';
 const SHELL = [
   './',
   './index.html',

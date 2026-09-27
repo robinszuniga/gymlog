@@ -44,7 +44,10 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+/* iPhone hace zoom al tocar campos con letra menor a 16 px */
+input, select, textarea { font-size: max(16px, 1em); }
 body {
   margin: 0;
   background: var(--bg);
@@ -199,7 +202,7 @@ a { color: inherit; text-decoration: none; }
 }
 .topbar h1 { font-size: 1.2rem; }
 .date-lbl { font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-.date-lbl input { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; color: var(--text); font-size: 0.9rem; }
+.date-lbl input { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; color: var(--text); font-size: 16px; }
 
 /* Imágenes de ejercicios */
 .thumb, .thumb-lg, .thumb-xl {
@@ -236,7 +239,12 @@ a { color: inherit; text-decoration: none; }
   display: grid; grid-template-columns: 34px 1fr 1fr 60px; gap: 8px; align-items: center;
   padding: 6px; border-radius: 12px; margin-bottom: 6px;
 }
-.sets.time .set-row { grid-template-columns: 34px 1fr 60px; }
+.sets.time .set-row { grid-template-columns: 34px 1fr 60px 60px; }
+.play {
+  height: 56px; border-radius: 12px; border: 0;
+  background: var(--c-def); color: #04202c; font-size: 1.3rem; font-weight: 900;
+}
+.play:disabled { opacity: 0.25; }
 .set-row.cardio { grid-template-columns: 44px 1fr auto; margin-top: 12px; }
 .set-row.head { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; padding-bottom: 0; margin-bottom: 0; }
 .set-row.head span { text-align: center; }

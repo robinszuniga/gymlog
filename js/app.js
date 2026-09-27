@@ -324,6 +324,7 @@ function exerciseCard(e, idx, item, sessions) {
       <span class="n">${si + 1}</span>
       ${isTime ? '' : `<input class="num" type="text" inputmode="decimal" autocomplete="off" data-f="kg" data-i="${idx}" data-s="${si}" value="${esc(set.kg)}" placeholder="${e.kind === 'reps' ? '0' : 'kg'}" aria-label="Peso serie ${si + 1} en kg">`}
       <input class="num" type="text" inputmode="numeric" autocomplete="off" data-f="reps" data-i="${idx}" data-s="${si}" value="${esc(set.reps)}" aria-label="${isTime ? 'Segundos' : 'Repeticiones'} serie ${si + 1}">
+      ${isTime ? `<button class="play" data-act="plank" data-i="${idx}" data-s="${si}" aria-label="Iniciar cronómetro serie ${si + 1}" ${set.done ? 'disabled' : ''}>▶</button>` : ''}
       <button class="check" data-act="toggle" data-i="${idx}" data-s="${si}" aria-pressed="${set.done}" aria-label="Serie ${si + 1} hecha">✓</button>
     </div>`).join('');
 
@@ -339,7 +340,7 @@ function exerciseCard(e, idx, item, sessions) {
     <p class="sug-detail">${esc(s.detail)}</p>
     ${last ? `<p class="last">Última (${fDate(last.date)}): <strong>${esc(setsText(last))}</strong></p>` : ''}
     <div class="sets ${isTime ? 'time' : ''}">
-      <div class="set-row head"><span>Serie</span>${isTime ? '' : `<span>${e.kind === 'reps' ? 'kg (opc.)' : 'kg'}</span>`}<span>${isTime ? 'seg' : 'reps'}</span><span></span></div>
+      <div class="set-row head"><span>Serie</span>${isTime ? '' : `<span>${e.kind === 'reps' ? 'kg (opc.)' : 'kg'}</span>`}<span>${isTime ? 'seg' : 'reps'}</span>${isTime ? '<span></span>' : ''}<span></span></div>
       ${rows}
     </div>
     ${item.setsMax > item.sets || e.sets.length > item.sets ? `<div class="row">
@@ -392,12 +393,16 @@ function finishSession() {
   toast('¡Listo! Sesión guardada 💪');
 }
 
-// ---------- temporizador de descanso ----------
-const timer = { end: 0, total: 0, id: 0 };
+// ---------- temporizador (descanso y cronómetro de plancha) ----------
+// label: texto que se muestra · onDone: qué hacer al llegar a 0 · noAdd: ocultar "+15 s"
+const timer = { end: 0, total: 0, id: 0, label: 'Descanso', onDone: null, noAdd: false };
 
-function startTimer(sec) {
+function startTimer(sec, label = 'Descanso', onDone = null, noAdd = false) {
   timer.total = sec;
   timer.end = Date.now() + sec * 1000;
+  timer.label = label;
+  timer.onDone = onDone;
+  timer.noAdd = noAdd;
   clearInterval(timer.id);
   timer.id = setInterval(paintTimer, 250);
   paintTimer();
@@ -406,6 +411,7 @@ function startTimer(sec) {
 function stopTimer() {
   clearInterval(timer.id);
   timer.end = 0;
+  timer.onDone = null;
   paintTimer();
   const el = document.getElementById('timer');
   if (el) el.innerHTML = '';
@@ -427,10 +433,16 @@ function paintTimer() {
   const add = el.querySelector('[data-act="timer-add"]');
   const left = Math.ceil((timer.end - Date.now()) / 1000);
   if (left <= 0) {
+    if (timer.onDone) {
+      const fn = timer.onDone;
+      timer.onDone = null;
+      alertEnd();
+      fn();
+      return;
+    }
     if (!el.classList.contains('over')) {
       el.classList.add('over');
-      try { navigator.vibrate?.([200, 100, 200]); } catch { /* no soportado */ }
-      beep();
+      alertEnd();
       const end = timer.end;
       setTimeout(() => { if (timer.end === end) stopTimer(); }, 4000);
     }
@@ -440,14 +452,53 @@ function paintTimer() {
     return;
   }
   el.classList.remove('over');
-  add.hidden = false;
+  add.hidden = timer.noAdd;
   const mm = Math.floor(left / 60);
   const ss = String(left % 60).padStart(2, '0');
-  txt.innerHTML = `Descanso <strong>${mm}:${ss}</strong>`;
+  txt.innerHTML = `${esc(timer.label)} <strong>${mm}:${ss}</strong>`;
   bar.style.width = `${Math.max(0, Math.min(100, (left / timer.total) * 100))}%`;
 }
 
+function alertEnd() {
+  try { navigator.vibrate?.([200, 100, 200]); } catch { /* no soportado */ }
+  beep();
+}
+
+// Cronómetro de plancha: 5 s para acomodarse, luego los segundos de la serie.
+// Al terminar marca la serie como hecha y arranca el descanso.
+function startPlank(i, si) {
+  const d = store.get().draft;
+  const secs = Math.round(num(d.entries[i].sets[si].reps) || 30);
+  unlockAudio();
+  const finish = () => {
+    const dd = store.get().draft;
+    const set = dd?.entries[i]?.sets[si];
+    if (!set) return;
+    set.done = true;
+    set.reps = secs;
+    store.setDraft(dd);
+    if (location.hash.startsWith('#/session')) rerenderSession();
+    startTimer(restFor(dd.mode));
+  };
+  startTimer(5, 'Prepárate', () => startTimer(secs, 'Plancha', finish, true), true);
+}
+
+function rerenderSession() {
+  const y = window.scrollY;
+  renderSession();
+  hydrateImages();
+  window.scrollTo(0, y);
+}
+
 let audioCtx;
+// En iPhone el sonido solo se habilita después de un toque del usuario.
+function unlockAudio() {
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  } catch { /* sin audio */ }
+}
+
 function beep() {
   try {
     audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
@@ -659,7 +710,11 @@ document.addEventListener('click', async (ev) => {
         go('#/');
       }
       break;
+    case 'plank':
+      startPlank(Number(el.dataset.i), Number(el.dataset.s));
+      break;
     case 'toggle': {
+      unlockAudio();
       const e = d.entries[el.dataset.i];
       const set = e.sets[el.dataset.s];
       if (!set.done && e.kind === 'weight' && num(set.kg) == null) {
