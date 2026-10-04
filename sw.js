@@ -1,5 +1,5 @@
 // Service worker: la app funciona sin internet; las imágenes se guardan la primera vez que se ven.
-const VERSION = 'gymlog-v2';
+const VERSION = 'gymlog-v3';
 const SHELL = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const SHELL = [
   './js/data.js',
   './js/store.js',
   './js/progression.js',
+  './js/plan.js',
+  './js/planUi.js',
+  './js/summary.js',
   './js/images.js',
   './js/chart.js',
   './manifest.webmanifest',
@@ -47,7 +50,7 @@ self.addEventListener('fetch', (e) => {
   }
   // Archivos de la app: red primero (para recibir actualizaciones) y caché sin conexión.
   if (url.origin === self.location.origin) {
-    e.respondWith(networkFirst(req, VERSION));
+    e.respondWith(networkFirst(req, VERSION, true));
   }
 });
 
@@ -60,12 +63,18 @@ async function cacheFirst(req, name) {
   return res;
 }
 
-async function networkFirst(req, name) {
+// fresh: pide al servidor que confirme que el archivo no cambió, en vez de confiar en la copia
+// del navegador. Así una actualización no mezcla archivos nuevos con viejos.
+async function networkFirst(req, name, fresh = false) {
   const cache = await caches.open(name);
   try {
-    const res = await fetch(req);
-    if (res.ok) cache.put(req, res.clone());
-    return res;
+    const res = await (fresh ? fetch(req.url, { cache: 'no-cache' }) : fetch(req));
+    if (res.ok) {
+      cache.put(req, res.clone());
+      return res;
+    }
+    // Respuesta con error (p. ej. la API ocupada): si hay una copia guardada, sirve esa.
+    return (await cache.match(req)) || res;
   } catch (err) {
     const hit = await cache.match(req, { ignoreSearch: req.mode === 'navigate' });
     if (hit) return hit;
